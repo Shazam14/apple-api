@@ -96,7 +96,10 @@ def settings_summary(
     sum_actual = sum((_than_actual(b) for b in borrowers), Decimal("0"))
     sum_nakulha = sum((b.than_nakulha for b in borrowers), Decimal("0"))
     sum_unreal = sum_actual - sum_nakulha
-    lent_out = s.total_capital - s.cash_on_hand
+    lent_out = sum(
+        (sum((t.principal for t in b.tranches), Decimal("0")) for b in borrowers),
+        Decimal("0"),
+    )
     than_day = (lent_out * s.daily_rate / Decimal("100")).quantize(Decimal("0.01"))
 
     return SettingsSummary(
@@ -207,6 +210,7 @@ def add_tranche(
             destination="From cash on hand",
         )
     )
+    b.balance = b.balance + body.principal
     if b.status == BorrowerStatus.PAID:
         b.status = BorrowerStatus.ACTIVE
     db.commit()
@@ -312,6 +316,8 @@ def add_activity(
     elif body.activity_type == ActivityType.PAYMENT_RECEIVED and body.amount:
         b.than_nakulha = b.than_nakulha + body.amount
         _re_evaluate_status(b)
+    elif body.activity_type == ActivityType.LATE_INTEREST and body.amount:
+        b.balance = b.balance + body.amount
 
     db.commit()
     db.refresh(entry)
