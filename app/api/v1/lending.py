@@ -160,13 +160,13 @@ def create_borrower(
     b = Borrower(
         owner_username=user["sub"],
         name=body.name,
-        balance=body.principal,
+        balance=body.principal + body.than,
         rate_snapshot=s.daily_rate,
         status=BorrowerStatus.ACTIVE,
     )
     db.add(b)
     db.flush()
-    db.add(LoanTranche(borrower_id=b.id, principal=body.principal))
+    db.add(LoanTranche(borrower_id=b.id, principal=body.principal, than=body.than))
     db.add(
         ActivityEntry(
             borrower_id=b.id,
@@ -200,7 +200,7 @@ def add_tranche(
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
 
-    db.add(LoanTranche(borrower_id=b.id, principal=body.principal))
+    db.add(LoanTranche(borrower_id=b.id, principal=body.principal, than=body.than))
     db.add(
         ActivityEntry(
             borrower_id=b.id,
@@ -210,7 +210,7 @@ def add_tranche(
             destination="From cash on hand",
         )
     )
-    b.balance = b.balance + body.principal
+    b.balance = b.balance + body.principal + body.than
     if b.status == BorrowerStatus.PAID:
         b.status = BorrowerStatus.ACTIVE
     db.commit()

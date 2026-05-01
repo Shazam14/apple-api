@@ -22,6 +22,7 @@ class LoanTranche(Base):
         Integer, ForeignKey("borrowers.id", ondelete="CASCADE"), index=True
     )
     principal: Mapped[Decimal] = mapped_column(Numeric(14, 2))
+    than: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
     released_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

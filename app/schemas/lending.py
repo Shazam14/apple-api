@@ -55,6 +55,7 @@ class ActivityOut(BaseModel):
 class TrancheOut(BaseModel):
     id: int
     principal: Decimal
+    than: Decimal
     released_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -62,11 +63,13 @@ class TrancheOut(BaseModel):
 
 class TrancheIn(BaseModel):
     principal: Decimal
+    than: Decimal = Decimal("0")
 
 
 class BorrowerIn(BaseModel):
     name: str
     principal: Decimal
+    than: Decimal = Decimal("0")
 
 
 class BorrowerPatch(BaseModel):
