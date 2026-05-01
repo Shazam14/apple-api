@@ -39,6 +39,11 @@ class ActivityIn(BaseModel):
     destination: Optional[str] = None
 
 
+class ActivityPatch(BaseModel):
+    amount: Optional[Decimal] = None
+    detail: Optional[str] = None
+
+
 class ActivityOut(BaseModel):
     id: int
     borrower_id: int

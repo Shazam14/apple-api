@@ -12,6 +12,7 @@ from app.models.settings import LendingSettings
 from app.schemas.lending import (
     ActivityIn,
     ActivityOut,
+    ActivityPatch,
     BorrowerIn,
     BorrowerOut,
     BorrowerPatch,
@@ -323,3 +324,60 @@ def add_activity(
     db.commit()
     db.refresh(entry)
     return ActivityOut.model_validate(entry)
+
+
+def _get_activity(borrower_id: int, activity_id: int, owner: str, db: Session) -> tuple[ActivityEntry, Borrower]:
+    b = db.query(Borrower).filter_by(id=borrower_id, owner_username=owner).first()
+    if not b:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
+    a = db.query(ActivityEntry).filter_by(id=activity_id, borrower_id=borrower_id).first()
+    if not a:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Activity not found")
+    return a, b
+
+
+@router.patch("/borrowers/{borrower_id}/activity/{activity_id}", response_model=ActivityOut)
+def edit_activity(
+    borrower_id: int,
+    activity_id: int,
+    body: ActivityPatch,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    a, b = _get_activity(borrower_id, activity_id, user["sub"], db)
+
+    if body.amount is not None and a.amount is not None:
+        delta = body.amount - a.amount
+        if a.activity_type == ActivityType.LATE_INTEREST:
+            b.balance = b.balance + delta
+        elif a.activity_type == ActivityType.PAYMENT_RECEIVED:
+            b.balance = b.balance - delta
+            b.than_nakulha = b.than_nakulha + delta
+        a.amount = body.amount
+
+    if body.detail is not None:
+        a.detail = body.detail
+
+    db.commit()
+    db.refresh(a)
+    return ActivityOut.model_validate(a)
+
+
+@router.delete("/borrowers/{borrower_id}/activity/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_activity(
+    borrower_id: int,
+    activity_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    a, b = _get_activity(borrower_id, activity_id, user["sub"], db)
+
+    if a.amount is not None:
+        if a.activity_type == ActivityType.LATE_INTEREST:
+            b.balance = b.balance - a.amount
+        elif a.activity_type == ActivityType.PAYMENT_RECEIVED:
+            b.balance = b.balance + a.amount
+            b.than_nakulha = max(Decimal("0"), b.than_nakulha - a.amount)
+
+    db.delete(a)
+    db.commit()
