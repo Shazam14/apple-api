@@ -314,6 +314,7 @@ def add_activity(
     if body.activity_type == ActivityType.MISSED_COLLECTION:
         b.status = BorrowerStatus.OVERDUE
     elif body.activity_type == ActivityType.PAYMENT_RECEIVED and body.amount:
+        b.balance = b.balance - body.amount
         b.than_nakulha = b.than_nakulha + body.amount
         _re_evaluate_status(b)
     elif body.activity_type == ActivityType.LATE_INTEREST and body.amount:
