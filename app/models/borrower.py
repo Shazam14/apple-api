@@ -38,6 +38,7 @@ class Borrower(Base):
     balance: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
     rate_snapshot: Mapped[Decimal] = mapped_column(Numeric(7, 4), default=Decimal("0"))
     than_nakulha: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
+    than_override: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True, default=None)
     status: Mapped[BorrowerStatus] = mapped_column(
         Enum(BorrowerStatus, name="borrower_status"),
         default=BorrowerStatus.ACTIVE,

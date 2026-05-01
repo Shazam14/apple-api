@@ -51,7 +51,8 @@ def _than_actual(b: Borrower) -> Decimal:
 
 
 def _serialise(b: Borrower) -> dict:
-    actual = _than_actual(b)
+    computed = _than_actual(b)
+    effective = b.than_override if b.than_override is not None else computed
     total_principal = sum((t.principal for t in b.tranches), Decimal("0"))
     return {
         "id": b.id,
@@ -60,9 +61,11 @@ def _serialise(b: Borrower) -> dict:
         "balance": b.balance,
         "rate_snapshot": b.rate_snapshot,
         "than_nakulha": b.than_nakulha,
+        "than_override": b.than_override,
         "status": b.status,
-        "than_actual": actual,
-        "than_unrealised": (actual - b.than_nakulha).quantize(Decimal("0.01")),
+        "than_actual": effective,
+        "than_computed": computed,
+        "than_unrealised": (effective - b.than_nakulha).quantize(Decimal("0.01")),
         "tranches": [TrancheOut.model_validate(t) for t in b.tranches],
         "activity": [ActivityOut.model_validate(a) for a in b.activity],
         "created_at": b.created_at,
@@ -73,8 +76,8 @@ def _serialise(b: Borrower) -> dict:
 def _re_evaluate_status(b: Borrower) -> None:
     if b.status == BorrowerStatus.OVERDUE:
         return
-    actual = _than_actual(b)
-    if actual > 0 and b.than_nakulha >= actual:
+    effective = b.than_override if b.than_override is not None else _than_actual(b)
+    if effective > 0 and b.than_nakulha >= effective:
         b.status = BorrowerStatus.PAID
     elif b.than_nakulha > 0:
         b.status = BorrowerStatus.ACTIVE

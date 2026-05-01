@@ -74,6 +74,7 @@ class BorrowerPatch(BaseModel):
     balance: Optional[Decimal] = None
     status: Optional[BorrowerStatus] = None
     than_nakulha: Optional[Decimal] = None
+    than_override: Optional[Decimal] = None
 
 
 class BorrowerOut(BaseModel):
@@ -83,8 +84,10 @@ class BorrowerOut(BaseModel):
     balance: Decimal
     rate_snapshot: Decimal
     than_nakulha: Decimal
+    than_override: Optional[Decimal]
     status: BorrowerStatus
     than_actual: Decimal
+    than_computed: Decimal
     than_unrealised: Decimal
     tranches: list[TrancheOut]
     activity: list[ActivityOut]
