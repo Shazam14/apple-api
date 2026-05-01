@@ -29,6 +29,7 @@ class SettingsSummary(BaseModel):
     sum_than_actual: Decimal
     sum_than_unrealised: Decimal
     sum_than_nakulha: Decimal
+    total_balance: Decimal
 
 
 class ActivityIn(BaseModel):

@@ -102,6 +102,7 @@ def settings_summary(
         Decimal("0"),
     )
     than_day = (lent_out * s.daily_rate / Decimal("100")).quantize(Decimal("0.01"))
+    total_balance = sum((b.balance for b in borrowers), Decimal("0"))
 
     return SettingsSummary(
         total_capital=s.total_capital,
@@ -118,6 +119,7 @@ def settings_summary(
         sum_than_actual=sum_actual.quantize(Decimal("0.01")),
         sum_than_unrealised=sum_unreal.quantize(Decimal("0.01")),
         sum_than_nakulha=sum_nakulha.quantize(Decimal("0.01")),
+        total_balance=total_balance.quantize(Decimal("0.01")),
     )
 
 
