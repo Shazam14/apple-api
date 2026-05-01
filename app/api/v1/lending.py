@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.core.security import require_role
 from app.models.activity import ActivityEntry, ActivityType
-from app.models.borrower import Borrower, BorrowerStatus
+from app.models.borrower import Borrower, BorrowerStatus, LoanTranche
 from app.models.settings import LendingSettings
 from app.schemas.lending import (
     ActivityIn,
@@ -16,6 +17,8 @@ from app.schemas.lending import (
     BorrowerPatch,
     SettingsIn,
     SettingsSummary,
+    TrancheIn,
+    TrancheOut,
 )
 
 
@@ -33,25 +36,34 @@ def _get_settings(db: Session, owner: str) -> LendingSettings:
     return s
 
 
+def _tranche_days(t: LoanTranche) -> int:
+    today = datetime.now(timezone.utc).date()
+    released = t.released_at.date() if t.released_at.tzinfo else t.released_at.date()
+    return max(1, (today - released).days + 1)
+
+
 def _than_actual(b: Borrower) -> Decimal:
-    return (b.principal * (b.rate_snapshot / Decimal("100")) * Decimal(b.days_elapsed)).quantize(
-        Decimal("0.01")
-    )
+    total = Decimal("0")
+    for t in b.tranches:
+        days = _tranche_days(t)
+        total += t.principal * (b.rate_snapshot / Decimal("100")) * Decimal(days)
+    return total.quantize(Decimal("0.01"))
 
 
 def _serialise(b: Borrower) -> dict:
     actual = _than_actual(b)
+    total_principal = sum((t.principal for t in b.tranches), Decimal("0"))
     return {
         "id": b.id,
         "name": b.name,
-        "principal": b.principal,
+        "principal": total_principal,
         "balance": b.balance,
         "rate_snapshot": b.rate_snapshot,
-        "days_elapsed": b.days_elapsed,
         "than_nakulha": b.than_nakulha,
         "status": b.status,
         "than_actual": actual,
         "than_unrealised": (actual - b.than_nakulha).quantize(Decimal("0.01")),
+        "tranches": [TrancheOut.model_validate(t) for t in b.tranches],
         "activity": [ActivityOut.model_validate(a) for a in b.activity],
         "created_at": b.created_at,
         "updated_at": b.updated_at,
@@ -142,14 +154,13 @@ def create_borrower(
     b = Borrower(
         owner_username=user["sub"],
         name=body.name,
-        principal=body.principal,
         balance=body.principal,
         rate_snapshot=s.daily_rate,
-        days_elapsed=1,
         status=BorrowerStatus.ACTIVE,
     )
     db.add(b)
     db.flush()
+    db.add(LoanTranche(borrower_id=b.id, principal=body.principal))
     db.add(
         ActivityEntry(
             borrower_id=b.id,
@@ -159,6 +170,42 @@ def create_borrower(
             destination="From cash on hand",
         )
     )
+    db.commit()
+    db.refresh(b)
+    return _serialise(b)
+
+
+@router.post(
+    "/borrowers/{borrower_id}/tranches",
+    response_model=BorrowerOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_tranche(
+    borrower_id: int,
+    body: TrancheIn,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    b = (
+        db.query(Borrower)
+        .filter_by(id=borrower_id, owner_username=user["sub"])
+        .first()
+    )
+    if not b:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
+
+    db.add(LoanTranche(borrower_id=b.id, principal=body.principal))
+    db.add(
+        ActivityEntry(
+            borrower_id=b.id,
+            activity_type=ActivityType.ADDITIONAL_LOAN,
+            detail=f"Additional release ₱{body.principal}",
+            amount=body.principal,
+            destination="From cash on hand",
+        )
+    )
+    if b.status == BorrowerStatus.PAID:
+        b.status = BorrowerStatus.ACTIVE
     db.commit()
     db.refresh(b)
     return _serialise(b)

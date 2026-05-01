@@ -52,6 +52,18 @@ class ActivityOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TrancheOut(BaseModel):
+    id: int
+    principal: Decimal
+    released_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TrancheIn(BaseModel):
+    principal: Decimal
+
+
 class BorrowerIn(BaseModel):
     name: str
     principal: Decimal
@@ -59,9 +71,7 @@ class BorrowerIn(BaseModel):
 
 class BorrowerPatch(BaseModel):
     name: Optional[str] = None
-    principal: Optional[Decimal] = None
     balance: Optional[Decimal] = None
-    days_elapsed: Optional[int] = None
     status: Optional[BorrowerStatus] = None
     than_nakulha: Optional[Decimal] = None
 
@@ -72,11 +82,11 @@ class BorrowerOut(BaseModel):
     principal: Decimal
     balance: Decimal
     rate_snapshot: Decimal
-    days_elapsed: int
     than_nakulha: Decimal
     status: BorrowerStatus
     than_actual: Decimal
     than_unrealised: Decimal
+    tranches: list[TrancheOut]
     activity: list[ActivityOut]
     created_at: datetime
     updated_at: datetime
