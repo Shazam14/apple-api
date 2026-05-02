@@ -23,6 +23,7 @@ class LoanTranche(Base):
     )
     principal: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     than: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
+    label: Mapped[str | None] = mapped_column(String(120), nullable=True, default=None)
     released_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

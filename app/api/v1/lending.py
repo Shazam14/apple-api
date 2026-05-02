@@ -170,12 +170,13 @@ def create_borrower(
     )
     db.add(b)
     db.flush()
-    db.add(LoanTranche(borrower_id=b.id, principal=body.principal, than=body.than))
+    label = (body.label or "").strip() or None
+    db.add(LoanTranche(borrower_id=b.id, principal=body.principal, than=body.than, label=label))
     db.add(
         ActivityEntry(
             borrower_id=b.id,
             activity_type=ActivityType.LOAN_RELEASED,
-            detail=f"₱{body.principal} principal",
+            detail=f"₱{body.principal} principal" + (f" — {label}" if label else ""),
             amount=body.principal,
             destination="From cash on hand",
         )
@@ -204,12 +205,13 @@ def add_tranche(
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
 
-    db.add(LoanTranche(borrower_id=b.id, principal=body.principal, than=body.than))
+    label = (body.label or "").strip() or None
+    db.add(LoanTranche(borrower_id=b.id, principal=body.principal, than=body.than, label=label))
     db.add(
         ActivityEntry(
             borrower_id=b.id,
             activity_type=ActivityType.ADDITIONAL_LOAN,
-            detail=f"Additional release ₱{body.principal}",
+            detail=f"Additional release ₱{body.principal}" + (f" — {label}" if label else ""),
             amount=body.principal,
             destination="From cash on hand",
         )
@@ -246,6 +248,9 @@ def patch_tranche(
         t.principal = body.principal
     if body.than is not None:
         t.than = body.than
+    if "label" in body.model_fields_set:
+        cleaned = (body.label or "").strip()
+        t.label = cleaned or None
     new_total = t.principal + t.than
     b.balance = b.balance + (new_total - old_total)
 

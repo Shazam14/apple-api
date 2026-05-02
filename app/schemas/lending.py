@@ -62,6 +62,7 @@ class TrancheOut(BaseModel):
     id: int
     principal: Decimal
     than: Decimal
+    label: Optional[str] = None
     released_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -70,17 +71,20 @@ class TrancheOut(BaseModel):
 class TrancheIn(BaseModel):
     principal: Decimal
     than: Decimal = Decimal("0")
+    label: Optional[str] = None
 
 
 class BorrowerIn(BaseModel):
     name: str
     principal: Decimal
     than: Decimal = Decimal("0")
+    label: Optional[str] = None
 
 
 class TranchePatch(BaseModel):
     principal: Optional[Decimal] = None
     than: Optional[Decimal] = None
+    label: Optional[str] = None
 
 
 class BorrowerPatch(BaseModel):
