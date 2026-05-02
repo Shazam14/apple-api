@@ -20,6 +20,7 @@ from app.schemas.lending import (
     SettingsSummary,
     TrancheIn,
     TrancheOut,
+    TranchePatch,
 )
 
 
@@ -216,6 +217,38 @@ def add_tranche(
     b.balance = b.balance + body.principal + body.than
     if b.status == BorrowerStatus.PAID:
         b.status = BorrowerStatus.ACTIVE
+    db.commit()
+    db.refresh(b)
+    return _serialise(b)
+
+
+@router.patch("/borrowers/{borrower_id}/tranches/{tranche_id}", response_model=BorrowerOut)
+def patch_tranche(
+    borrower_id: int,
+    tranche_id: int,
+    body: TranchePatch,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    b = (
+        db.query(Borrower)
+        .filter_by(id=borrower_id, owner_username=user["sub"])
+        .first()
+    )
+    if not b:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
+    t = db.query(LoanTranche).filter_by(id=tranche_id, borrower_id=borrower_id).first()
+    if not t:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tranche not found")
+
+    old_total = t.principal + t.than
+    if body.principal is not None:
+        t.principal = body.principal
+    if body.than is not None:
+        t.than = body.than
+    new_total = t.principal + t.than
+    b.balance = b.balance + (new_total - old_total)
+
     db.commit()
     db.refresh(b)
     return _serialise(b)

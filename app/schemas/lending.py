@@ -78,6 +78,11 @@ class BorrowerIn(BaseModel):
     than: Decimal = Decimal("0")
 
 
+class TranchePatch(BaseModel):
+    principal: Optional[Decimal] = None
+    than: Optional[Decimal] = None
+
+
 class BorrowerPatch(BaseModel):
     name: Optional[str] = None
     balance: Optional[Decimal] = None
