@@ -171,7 +171,13 @@ def create_borrower(
     db.add(b)
     db.flush()
     label = (body.label or "").strip() or None
-    db.add(LoanTranche(borrower_id=b.id, principal=body.principal, than=body.than, label=label))
+    db.add(LoanTranche(
+        borrower_id=b.id,
+        principal=body.principal,
+        than=body.than,
+        label=label,
+        tenor_days=body.tenor_days,
+    ))
     db.add(
         ActivityEntry(
             borrower_id=b.id,
@@ -206,7 +212,13 @@ def add_tranche(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
 
     label = (body.label or "").strip() or None
-    db.add(LoanTranche(borrower_id=b.id, principal=body.principal, than=body.than, label=label))
+    db.add(LoanTranche(
+        borrower_id=b.id,
+        principal=body.principal,
+        than=body.than,
+        label=label,
+        tenor_days=body.tenor_days,
+    ))
     db.add(
         ActivityEntry(
             borrower_id=b.id,
@@ -251,6 +263,8 @@ def patch_tranche(
     if "label" in body.model_fields_set:
         cleaned = (body.label or "").strip()
         t.label = cleaned or None
+    if "tenor_days" in body.model_fields_set:
+        t.tenor_days = body.tenor_days
     new_total = t.principal + t.than
     b.balance = b.balance + (new_total - old_total)
 
