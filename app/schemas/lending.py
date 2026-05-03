@@ -64,6 +64,8 @@ class TrancheOut(BaseModel):
     than: Decimal
     label: Optional[str] = None
     tenor_days: Optional[int] = None
+    rate_pct: Optional[Decimal] = None
+    late_fee_period_days: Optional[int] = None
     released_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -74,6 +76,8 @@ class TrancheIn(BaseModel):
     than: Decimal = Decimal("0")
     label: Optional[str] = None
     tenor_days: Optional[int] = None
+    rate_pct: Optional[Decimal] = None
+    late_fee_period_days: Optional[int] = None
 
 
 class BorrowerIn(BaseModel):
@@ -82,6 +86,8 @@ class BorrowerIn(BaseModel):
     than: Decimal = Decimal("0")
     label: Optional[str] = None
     tenor_days: Optional[int] = None
+    rate_pct: Optional[Decimal] = None
+    late_fee_period_days: Optional[int] = None
 
 
 class TranchePatch(BaseModel):
@@ -89,6 +95,8 @@ class TranchePatch(BaseModel):
     than: Optional[Decimal] = None
     label: Optional[str] = None
     tenor_days: Optional[int] = None
+    rate_pct: Optional[Decimal] = None
+    late_fee_period_days: Optional[int] = None
 
 
 class BorrowerPatch(BaseModel):

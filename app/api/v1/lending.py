@@ -177,6 +177,8 @@ def create_borrower(
         than=body.than,
         label=label,
         tenor_days=body.tenor_days,
+        rate_pct=body.rate_pct,
+        late_fee_period_days=body.late_fee_period_days,
     ))
     db.add(
         ActivityEntry(
@@ -218,6 +220,8 @@ def add_tranche(
         than=body.than,
         label=label,
         tenor_days=body.tenor_days,
+        rate_pct=body.rate_pct,
+        late_fee_period_days=body.late_fee_period_days,
     ))
     db.add(
         ActivityEntry(
@@ -265,6 +269,10 @@ def patch_tranche(
         t.label = cleaned or None
     if "tenor_days" in body.model_fields_set:
         t.tenor_days = body.tenor_days
+    if "rate_pct" in body.model_fields_set:
+        t.rate_pct = body.rate_pct
+    if "late_fee_period_days" in body.model_fields_set:
+        t.late_fee_period_days = body.late_fee_period_days
     new_total = t.principal + t.than
     b.balance = b.balance + (new_total - old_total)
 

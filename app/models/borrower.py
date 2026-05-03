@@ -25,6 +25,8 @@ class LoanTranche(Base):
     than: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal("0"))
     label: Mapped[str | None] = mapped_column(String(120), nullable=True, default=None)
     tenor_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    rate_pct: Mapped[Decimal | None] = mapped_column(Numeric(7, 4), nullable=True, default=None)
+    late_fee_period_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     released_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
