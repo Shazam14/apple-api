@@ -97,6 +97,7 @@ class TranchePatch(BaseModel):
     tenor_days: Optional[int] = None
     rate_pct: Optional[Decimal] = None
     late_fee_period_days: Optional[int] = None
+    released_at: Optional[datetime] = None
 
 
 class BorrowerPatch(BaseModel):
