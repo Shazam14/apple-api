@@ -283,6 +283,47 @@ def patch_tranche(
     return _serialise(b)
 
 
+@router.delete(
+    "/borrowers/{borrower_id}/tranches/{tranche_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_tranche(
+    borrower_id: int,
+    tranche_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    b = (
+        db.query(Borrower)
+        .filter_by(id=borrower_id, owner_username=user["sub"])
+        .first()
+    )
+    if not b:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
+    t = db.query(LoanTranche).filter_by(id=tranche_id, borrower_id=borrower_id).first()
+    if not t:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tranche not found")
+
+    twin = (
+        db.query(ActivityEntry)
+        .filter(
+            ActivityEntry.borrower_id == borrower_id,
+            ActivityEntry.activity_type.in_(
+                [ActivityType.LOAN_RELEASED, ActivityType.ADDITIONAL_LOAN]
+            ),
+            ActivityEntry.amount == t.principal,
+        )
+        .order_by(ActivityEntry.id.desc())
+        .first()
+    )
+    if twin is not None:
+        db.delete(twin)
+
+    b.balance = b.balance - (t.principal + t.than)
+    db.delete(t)
+    db.commit()
+
+
 @router.patch("/borrowers/{borrower_id}", response_model=BorrowerOut)
 def patch_borrower(
     borrower_id: int,
