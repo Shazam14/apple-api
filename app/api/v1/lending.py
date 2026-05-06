@@ -48,7 +48,8 @@ def _than_actual(b: Borrower) -> Decimal:
     total = Decimal("0")
     for t in b.tranches:
         days = _tranche_days(t)
-        total += t.principal * (b.rate_snapshot / Decimal("100")) * Decimal(days)
+        rate = t.rate_pct if t.rate_pct is not None else b.rate_snapshot
+        total += t.principal * (rate / Decimal("100")) * Decimal(days)
     return total.quantize(Decimal("0.01"))
 
 
