@@ -192,7 +192,7 @@ def create_borrower(
         principal=body.principal,
         than=body.than,
         label=label,
-        tenor_days=body.tenor_days,
+        tenor_days=body.tenor_days if body.tenor_days is not None else 1,
         rate_pct=body.rate_pct,
         late_fee_period_days=body.late_fee_period_days,
     ))
@@ -235,7 +235,7 @@ def add_tranche(
         principal=body.principal,
         than=body.than,
         label=label,
-        tenor_days=body.tenor_days,
+        tenor_days=body.tenor_days if body.tenor_days is not None else 1,
         rate_pct=body.rate_pct,
         late_fee_period_days=body.late_fee_period_days,
     ))
