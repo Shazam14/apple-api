@@ -53,6 +53,11 @@ def _than_actual(b: Borrower) -> Decimal:
     return total.quantize(Decimal("0.01"))
 
 
+def _live_balance(b: Borrower, effective: Decimal) -> Decimal:
+    frozen_than = sum((t.than for t in b.tranches), Decimal("0"))
+    return (b.balance + (effective - frozen_than)).quantize(Decimal("0.01"))
+
+
 def _serialise(b: Borrower) -> dict:
     computed = _than_actual(b)
     effective = b.than_override if b.than_override is not None else computed
@@ -61,7 +66,7 @@ def _serialise(b: Borrower) -> dict:
         "id": b.id,
         "name": b.name,
         "principal": total_principal,
-        "balance": b.balance,
+        "balance": _live_balance(b, effective),
         "rate_snapshot": b.rate_snapshot,
         "than_nakulha": b.than_nakulha,
         "than_override": b.than_override,
@@ -104,7 +109,11 @@ def settings_summary(
         Decimal("0"),
     )
     than_day = (lent_out * s.daily_rate / Decimal("100")).quantize(Decimal("0.01"))
-    total_balance = sum((b.balance for b in borrowers), Decimal("0"))
+    total_balance = Decimal("0")
+    for b in borrowers:
+        computed = _than_actual(b)
+        effective = b.than_override if b.than_override is not None else computed
+        total_balance += _live_balance(b, effective)
 
     return SettingsSummary(
         total_capital=s.total_capital,
