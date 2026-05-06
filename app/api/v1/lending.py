@@ -1,5 +1,8 @@
 from datetime import datetime, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
+
+PH_TZ = ZoneInfo("Asia/Manila")
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -39,8 +42,11 @@ def _get_settings(db: Session, owner: str) -> LendingSettings:
 
 
 def _tranche_days(t: LoanTranche) -> int:
-    today = datetime.now(timezone.utc).date()
-    released = t.released_at.date() if t.released_at.tzinfo else t.released_at.date()
+    today = datetime.now(PH_TZ).date()
+    released_dt = t.released_at
+    if released_dt.tzinfo is None:
+        released_dt = released_dt.replace(tzinfo=timezone.utc)
+    released = released_dt.astimezone(PH_TZ).date()
     return max(1, (today - released).days + 1)
 
 
