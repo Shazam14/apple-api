@@ -47,7 +47,7 @@ def _tranche_days(t: LoanTranche) -> int:
     if released_dt.tzinfo is None:
         released_dt = released_dt.replace(tzinfo=timezone.utc)
     released = released_dt.astimezone(PH_TZ).date()
-    return max(1, (today - released).days)
+    return max(1, (today - released).days + 1)
 
 
 def _than_actual(b: Borrower) -> Decimal:
