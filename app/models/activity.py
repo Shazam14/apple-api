@@ -15,6 +15,7 @@ class ActivityType(str, enum.Enum):
     ADDITIONAL_LOAN = "Additional loan"
     MISSED_COLLECTION = "Missed collection"
     LATE_INTEREST = "Late interest"
+    LOAN_CLOSED = "Loan closed"
 
 
 class PaymentMethod(str, enum.Enum):

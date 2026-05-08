@@ -91,9 +91,11 @@ def _re_evaluate_status(b: Borrower) -> None:
     if b.status == BorrowerStatus.OVERDUE:
         return
     effective = b.than_override if b.than_override is not None else _than_actual(b)
-    if effective > 0 and b.than_nakulha >= effective:
+    live_balance = _live_balance(b, effective)
+    than_collected = effective > 0 and b.than_nakulha >= effective
+    if than_collected and live_balance <= 0:
         b.status = BorrowerStatus.PAID
-    elif b.than_nakulha > 0:
+    elif b.than_nakulha > 0 or live_balance > 0:
         b.status = BorrowerStatus.ACTIVE
 
 
@@ -441,6 +443,9 @@ def add_activity(
         _re_evaluate_status(b)
     elif body.activity_type == ActivityType.LATE_INTEREST and body.amount:
         b.balance = b.balance + body.amount
+    elif body.activity_type == ActivityType.LOAN_CLOSED and body.amount:
+        b.balance = b.balance - body.amount
+        _re_evaluate_status(b)
 
     db.commit()
     db.refresh(entry)
@@ -474,6 +479,8 @@ def edit_activity(
         elif a.activity_type == ActivityType.PAYMENT_RECEIVED:
             b.balance = b.balance - delta
             b.than_nakulha = b.than_nakulha + delta
+        elif a.activity_type == ActivityType.LOAN_CLOSED:
+            b.balance = b.balance - delta
         a.amount = body.amount
 
     if body.detail is not None:
@@ -499,6 +506,8 @@ def delete_activity(
         elif a.activity_type == ActivityType.PAYMENT_RECEIVED:
             b.balance = b.balance + a.amount
             b.than_nakulha = max(Decimal("0"), b.than_nakulha - a.amount)
+        elif a.activity_type == ActivityType.LOAN_CLOSED:
+            b.balance = b.balance + a.amount
 
     db.delete(a)
     db.commit()
