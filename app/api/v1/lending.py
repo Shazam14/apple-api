@@ -41,19 +41,61 @@ def _get_settings(db: Session, owner: str) -> LendingSettings:
     return s
 
 
-def _tranche_days(t: LoanTranche) -> int:
+def _tranche_days(t: LoanTranche, settled_at: datetime | None = None) -> int:
     today = datetime.now(PH_TZ).date()
     released_dt = t.released_at
     if released_dt.tzinfo is None:
         released_dt = released_dt.replace(tzinfo=timezone.utc)
     released = released_dt.astimezone(PH_TZ).date()
-    return max(1, (today - released).days + 1)
+    if settled_at is not None:
+        settled_dt = settled_at
+        if settled_dt.tzinfo is None:
+            settled_dt = settled_dt.replace(tzinfo=timezone.utc)
+        cutoff = min(today, settled_dt.astimezone(PH_TZ).date())
+    else:
+        cutoff = today
+    return max(1, (cutoff - released).days + 1)
+
+
+def _compute_settled_at_map(b: Borrower) -> dict[int, datetime | None]:
+    """Walk activity chronologically; for each tranche, return the first moment
+    AFTER its release where running balance reached zero. Tranches with no such
+    moment (released after the last zero) stay live (None).
+    """
+    events: list[tuple[datetime, Decimal]] = []  # (date, signed delta)
+    for t in b.tranches:
+        events.append((t.released_at, t.principal + t.than))
+    for a in b.activity:
+        amt = a.amount or Decimal("0")
+        if not amt:
+            continue
+        if a.activity_type in (ActivityType.PAYMENT_RECEIVED, ActivityType.PARTIAL_PAYMENT):
+            events.append((a.created_at, -amt))
+        elif a.activity_type == ActivityType.LATE_INTEREST:
+            events.append((a.created_at, amt))
+        elif a.activity_type == ActivityType.LOAN_CLOSED:
+            events.append((a.created_at, -amt))
+    events.sort(key=lambda e: e[0])
+
+    running = Decimal("0")
+    zero_moments: list[datetime] = []
+    for dt, delta in events:
+        running += delta
+        if running <= 0:
+            zero_moments.append(dt)
+
+    result: dict[int, datetime | None] = {}
+    for t in b.tranches:
+        first = next((z for z in zero_moments if z > t.released_at), None)
+        result[t.id] = first
+    return result
 
 
 def _than_actual(b: Borrower) -> Decimal:
+    settled = _compute_settled_at_map(b)
     total = Decimal("0")
     for t in b.tranches:
-        days = _tranche_days(t)
+        days = _tranche_days(t, settled.get(t.id))
         rate = t.rate_pct if t.rate_pct is not None else b.rate_snapshot
         total += t.principal * (rate / Decimal("100")) * Decimal(days)
     return total.quantize(Decimal("0.01"))
