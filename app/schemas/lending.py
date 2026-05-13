@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.models.activity import ActivityType, PaymentMethod
 from app.models.borrower import BorrowerStatus
+from app.models.inventory import InventoryCategory
 
 
 class SettingsIn(BaseModel):
@@ -126,3 +127,40 @@ class BorrowerOut(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Peso Inventory ──────────────────────────────────────────────────────
+
+
+class InventoryEntryIn(BaseModel):
+    category: InventoryCategory
+    description: str
+    amount: Decimal
+
+
+class InventoryEntryOut(BaseModel):
+    id: int
+    category: InventoryCategory
+    description: str
+    amount: Decimal
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CapitalOutItem(BaseModel):
+    borrower_id: int
+    name: str
+    amount: Decimal
+
+
+class InventorySummary(BaseModel):
+    capital: Decimal
+    capital_out_total: Decimal
+    capital_out_items: list[CapitalOutItem]
+    than_borrower_total: Decimal
+    than_extra_total: Decimal
+    than_total: Decimal
+    expenses_total: Decimal
+    remaining: Decimal
+    entries: list[InventoryEntryOut]

@@ -11,6 +11,7 @@ from app.core.db import get_db
 from app.core.security import require_role
 from app.models.activity import ActivityEntry, ActivityType
 from app.models.borrower import Borrower, BorrowerStatus, LoanTranche
+from app.models.inventory import InventoryCategory, InventoryEntry
 from app.models.settings import LendingSettings
 from app.schemas.lending import (
     ActivityIn,
@@ -19,6 +20,10 @@ from app.schemas.lending import (
     BorrowerIn,
     BorrowerOut,
     BorrowerPatch,
+    CapitalOutItem,
+    InventoryEntryIn,
+    InventoryEntryOut,
+    InventorySummary,
     SettingsIn,
     SettingsSummary,
     TrancheIn,
@@ -552,4 +557,101 @@ def delete_activity(
             b.balance = b.balance + a.amount
 
     db.delete(a)
+    db.commit()
+
+
+# ── Peso Inventory ──────────────────────────────────────────────────────
+
+
+@router.get("/inventory/summary", response_model=InventorySummary)
+def inventory_summary(
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    s = _get_settings(db, user["sub"])
+    borrowers = db.query(Borrower).filter_by(owner_username=user["sub"]).all()
+    entries = (
+        db.query(InventoryEntry)
+        .filter_by(owner_username=user["sub"])
+        .order_by(InventoryEntry.created_at.desc())
+        .all()
+    )
+
+    capital_out_items: list[CapitalOutItem] = []
+    capital_out_total = Decimal("0")
+    for b in borrowers:
+        computed = _than_actual(b)
+        effective = b.than_override if b.than_override is not None else computed
+        live = _live_balance(b, effective)
+        if live > 0:
+            capital_out_items.append(
+                CapitalOutItem(borrower_id=b.id, name=b.name, amount=live)
+            )
+            capital_out_total += live
+    capital_out_items.sort(key=lambda x: x.amount, reverse=True)
+
+    than_borrower_total = sum((b.than_nakulha for b in borrowers), Decimal("0"))
+    than_extra_total = sum(
+        (e.amount for e in entries if e.category == InventoryCategory.THAN_EXTRA),
+        Decimal("0"),
+    )
+    expenses_total = sum(
+        (e.amount for e in entries if e.category == InventoryCategory.EXPENSE),
+        Decimal("0"),
+    )
+    than_total = than_borrower_total + than_extra_total
+    remaining = (s.total_capital - capital_out_total + than_total - expenses_total)
+
+    return InventorySummary(
+        capital=s.total_capital,
+        capital_out_total=capital_out_total.quantize(Decimal("0.01")),
+        capital_out_items=capital_out_items,
+        than_borrower_total=than_borrower_total.quantize(Decimal("0.01")),
+        than_extra_total=than_extra_total.quantize(Decimal("0.01")),
+        than_total=than_total.quantize(Decimal("0.01")),
+        expenses_total=expenses_total.quantize(Decimal("0.01")),
+        remaining=remaining.quantize(Decimal("0.01")),
+        entries=[InventoryEntryOut.model_validate(e) for e in entries],
+    )
+
+
+@router.post(
+    "/inventory/entries",
+    response_model=InventoryEntryOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_inventory_entry(
+    body: InventoryEntryIn,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    entry = InventoryEntry(
+        owner_username=user["sub"],
+        category=body.category,
+        description=body.description.strip(),
+        amount=body.amount,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return InventoryEntryOut.model_validate(entry)
+
+
+@router.delete(
+    "/inventory/entries/{entry_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_inventory_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    entry = (
+        db.query(InventoryEntry)
+        .filter_by(id=entry_id, owner_username=user["sub"])
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Entry not found")
+    db.delete(entry)
     db.commit()

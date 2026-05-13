@@ -1,6 +1,7 @@
 from app.models.borrower import Borrower, BorrowerStatus, LoanTranche
 from app.models.activity import ActivityEntry, ActivityType, PaymentMethod
 from app.models.settings import LendingSettings
+from app.models.inventory import InventoryEntry, InventoryCategory
 
 __all__ = [
     "Borrower",
@@ -10,4 +11,6 @@ __all__ = [
     "ActivityType",
     "PaymentMethod",
     "LendingSettings",
+    "InventoryEntry",
+    "InventoryCategory",
 ]
