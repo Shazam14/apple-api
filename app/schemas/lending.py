@@ -125,6 +125,7 @@ class BorrowerOut(BaseModel):
     activity: list[ActivityOut]
     created_at: datetime
     updated_at: datetime
+    archived_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -52,6 +52,9 @@ class Borrower(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
     tranches: Mapped[list["LoanTranche"]] = relationship(
         back_populates="borrower",

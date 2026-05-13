@@ -131,6 +131,7 @@ def _serialise(b: Borrower) -> dict:
         "activity": [ActivityOut.model_validate(a) for a in b.activity],
         "created_at": b.created_at,
         "updated_at": b.updated_at,
+        "archived_at": b.archived_at,
     }
 
 
@@ -207,15 +208,16 @@ def update_settings(
 
 @router.get("/borrowers", response_model=list[BorrowerOut])
 def list_borrowers(
+    archived: bool = False,
     db: Session = Depends(get_db),
     user: dict = Depends(admin_only),
 ):
-    borrowers = (
-        db.query(Borrower)
-        .filter_by(owner_username=user["sub"])
-        .order_by(Borrower.created_at.desc())
-        .all()
-    )
+    q = db.query(Borrower).filter_by(owner_username=user["sub"])
+    if archived:
+        q = q.filter(Borrower.archived_at.isnot(None))
+    else:
+        q = q.filter(Borrower.archived_at.is_(None))
+    borrowers = q.order_by(Borrower.created_at.desc()).all()
     return [_serialise(b) for b in borrowers]
 
 
@@ -433,6 +435,44 @@ def delete_borrower(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
     db.delete(b)
     db.commit()
+
+
+@router.post("/borrowers/{borrower_id}/archive", response_model=BorrowerOut)
+def archive_borrower(
+    borrower_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    b = (
+        db.query(Borrower)
+        .filter_by(id=borrower_id, owner_username=user["sub"])
+        .first()
+    )
+    if not b:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
+    b.archived_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(b)
+    return _serialise(b)
+
+
+@router.post("/borrowers/{borrower_id}/unarchive", response_model=BorrowerOut)
+def unarchive_borrower(
+    borrower_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(admin_only),
+):
+    b = (
+        db.query(Borrower)
+        .filter_by(id=borrower_id, owner_username=user["sub"])
+        .first()
+    )
+    if not b:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Borrower not found")
+    b.archived_at = None
+    db.commit()
+    db.refresh(b)
+    return _serialise(b)
 
 
 # ── Activity ────────────────────────────────────────────────────────────
