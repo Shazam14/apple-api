@@ -625,7 +625,12 @@ def inventory_summary(
         live = _live_balance(b, effective)
         if live > 0:
             capital_out_items.append(
-                CapitalOutItem(borrower_id=b.id, name=b.name, amount=live)
+                CapitalOutItem(
+                    borrower_id=b.id,
+                    name=b.name,
+                    amount=live,
+                    than=effective.quantize(Decimal("0.01")),
+                )
             )
             capital_out_total += live
     capital_out_items.sort(key=lambda x: x.amount, reverse=True)

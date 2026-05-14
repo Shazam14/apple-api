@@ -153,6 +153,7 @@ class CapitalOutItem(BaseModel):
     borrower_id: int
     name: str
     amount: Decimal
+    than: Decimal
 
 
 class InventorySummary(BaseModel):
