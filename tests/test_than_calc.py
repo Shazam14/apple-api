@@ -54,3 +54,14 @@ def test_rate_pct_explicit_overrides_settings():
     t = _mk_tranche(principal="10000", rate_pct="2", days_ago=0)
     b = _mk_borrower(rate_snapshot="5", tranches=[t])
     assert _than_actual(b) == Decimal("200.00")
+
+
+def test_negative_rate_pct_clamped_to_zero():
+    # Helen ng Nelfa, 2026-05-14: 23 of her 24 tranches had rate_pct=-0.01/-0.02
+    # (legacy "no THAN" sentinel). Backend was summing them, so the nelfa
+    # tranche's real ₱4,800 was getting eaten by ~₱619 of phantom negatives.
+    # Frontend (due.ts:89) already clamps; backend must match.
+    nelfa = _mk_tranche(id_=1, principal="20000", rate_pct="2", days_ago=0)
+    neg = _mk_tranche(id_=2, principal="100000", rate_pct="-0.01", days_ago=0)
+    b = _mk_borrower(rate_snapshot="1.5", tranches=[nelfa, neg])
+    assert _than_actual(b) == Decimal("400.00")
